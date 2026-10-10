@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- Migration: 20260103_seed_question_bank.sql
 -- Seed INC 2026 Internal Qualification Question Bank (All 3 Divisions: 12 Questions)
+-- Uses standard RFC-4122 compliant UUIDs for PostgreSQL compatibility
 -- ==============================================================================
 
 -- 1. Ensure all 3 assessments are published
@@ -12,8 +13,8 @@ WHERE division IN ('problem_analysis', 'algorithm_builder', 'programmer');
 INSERT INTO public.questions (id, assessment_id, division, order_index, title, statement, question_type, max_score, is_enabled, constraints, examples)
 VALUES 
 (
-  'q-pa-1',
-  'asmt-problem-analysis',
+  'a0000001-0000-0000-0000-000000000001'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'problem_analysis'),
   'problem_analysis',
   1,
   'Choosing an Approach',
@@ -42,8 +43,8 @@ For each situation, provide:
   '[]'::jsonb
 ),
 (
-  'q-pa-2',
-  'asmt-problem-analysis',
+  'a0000001-0000-0000-0000-000000000002'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'problem_analysis'),
   'problem_analysis',
   2,
   'Improving Repeated Range Queries',
@@ -66,8 +67,8 @@ Answer the following questions:
   '[]'::jsonb
 ),
 (
-  'q-pa-3',
-  'asmt-problem-analysis',
+  'a0000001-0000-0000-0000-000000000003'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'problem_analysis'),
   'problem_analysis',
   3,
   'Static Queries Versus Updates',
@@ -95,8 +96,8 @@ You may recommend either a Fenwick Tree or a Segment Tree for System B if your e
   '[]'::jsonb
 ),
 (
-  'q-pa-4',
-  'asmt-problem-analysis',
+  'a0000001-0000-0000-0000-000000000004'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'problem_analysis'),
   'problem_analysis',
   4,
   'Longest Valid Contiguous Segment',
@@ -129,8 +130,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.questions (id, assessment_id, division, order_index, title, statement, question_type, max_score, is_enabled, constraints, examples)
 VALUES 
 (
-  'q-ab-1',
-  'asmt-algorithm-builder',
+  'b0000002-0000-0000-0000-000000000001'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'algorithm_builder'),
   'algorithm_builder',
   1,
   'Scheduling the Maximum Number of Meetings',
@@ -154,8 +155,8 @@ Provide the following:
   '[]'::jsonb
 ),
 (
-  'q-ab-2',
-  'asmt-algorithm-builder',
+  'b0000002-0000-0000-0000-000000000002'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'algorithm_builder'),
   'algorithm_builder',
   2,
   'Cheapest Route in a Weighted Network',
@@ -177,8 +178,8 @@ Provide the following:
   '[]'::jsonb
 ),
 (
-  'q-ab-3',
-  'asmt-algorithm-builder',
+  'b0000002-0000-0000-0000-000000000003'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'algorithm_builder'),
   'algorithm_builder',
   3,
   'Maximum Sum Without Adjacent Elements',
@@ -202,8 +203,8 @@ Provide the following:
   '[]'::jsonb
 ),
 (
-  'q-ab-4',
-  'asmt-algorithm-builder',
+  'b0000002-0000-0000-0000-000000000004'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'algorithm_builder'),
   'algorithm_builder',
   4,
   'Handling Dynamic Range-Sum Queries',
@@ -239,8 +240,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.questions (id, assessment_id, division, order_index, title, statement, question_type, max_score, is_enabled, constraints, examples)
 VALUES 
 (
-  'q-pr-1',
-  'asmt-programmer',
+  'c0000003-0000-0000-0000-000000000001'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'programmer'),
   'programmer',
   1,
   'Count the Distinct Values',
@@ -277,8 +278,8 @@ The distinct values are `1`, `2`, `3`, and `5`, so the answer is `4`.',
   '[{"input": "7\n3 1 3 2 5 2 5", "output": "4", "explanation": "The distinct values are 1, 2, 3, and 5."}]'::jsonb
 ),
 (
-  'q-pr-2',
-  'asmt-programmer',
+  'c0000003-0000-0000-0000-000000000002'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'programmer'),
   'programmer',
   2,
   'Longest Segment Under a Budget',
@@ -318,8 +319,8 @@ The segment `[2, 1, 3, 4]` has sum `10` and length `4`, the segment `[1, 3, 4, 2
   '[{"input": "5 11\n2 1 3 4 2", "output": "4", "explanation": "The segment [2, 1, 3, 4] has sum 10 and length 4."}]'::jsonb
 ),
 (
-  'q-pr-3',
-  'asmt-programmer',
+  'c0000003-0000-0000-0000-000000000003'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'programmer'),
   'programmer',
   3,
   'Shortest Path Through a Grid',
@@ -362,8 +363,8 @@ One shortest route moves down along the first column to the bottom row, then mov
   '[{"input": "4 5\nS....\n.#...\n.#.#.\n...T.", "output": "6", "explanation": "One shortest route moves down along the first column to the bottom row, then moves right to the target."}]'::jsonb
 ),
 (
-  'q-pr-4',
-  'asmt-programmer',
+  'c0000003-0000-0000-0000-000000000004'::uuid,
+  (SELECT id FROM public.assessments WHERE division = 'programmer'),
   'programmer',
   4,
   'Minimum Cost Frog Jump',
@@ -413,8 +414,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.private_question_configs (id, question_id, reference_answer, grading_rubric, test_cases)
 VALUES
 (
-  'cfg-pa-1',
-  'q-pa-1',
+  'a0000001-0000-0000-0000-000000000011'::uuid,
+  'a0000001-0000-0000-0000-000000000001'::uuid,
   'Situation A: Prefix sums. Preprocessing O(N), query O(1), total O(N + Q), space O(N).
 Situation B: BFS from S. Unweighted graph, explores in nondecreasing edges. Time O(N + M), space O(N + M).
 Situation C: Dijkstra. Nonnegative edge weights. Time O((N + M) log N), space O(N + M).
@@ -428,8 +429,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], ways[0]=1
   '[]'::jsonb
 ),
 (
-  'cfg-pa-2',
-  'q-pa-2',
+  'a0000001-0000-0000-0000-000000000012'::uuid,
+  'a0000001-0000-0000-0000-000000000002'::uuid,
   '1. Worst-case is O(NQ) taking ~4 x 10^10 operations, causing TLE.
 2. Build prefix sums.
 3. prefix[i] stores cumulative sum up to i. Query [L, R] = prefix[R] - prefix[L - 1].
@@ -445,8 +446,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], ways[0]=1
   '[]'::jsonb
 ),
 (
-  'cfg-pa-3',
-  'q-pa-3',
+  'a0000001-0000-0000-0000-000000000013'::uuid,
+  'a0000001-0000-0000-0000-000000000003'::uuid,
   '1. System A: Prefix sums, O(N) preprocessing and O(1) query time.
 2. System B: Fenwick Tree or Segment Tree, O(log N) update and query time.
 3. Updates invalidate ordinary prefix sums, requiring O(N) recomputation per update.
@@ -460,8 +461,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], ways[0]=1
   '[]'::jsonb
 ),
 (
-  'cfg-pa-4',
-  'q-pa-4',
+  'a0000001-0000-0000-0000-000000000014'::uuid,
+  'a0000001-0000-0000-0000-000000000004'::uuid,
   '1. Brute force tests all O(N^2) segments and takes O(N^2) or O(N^3) time.
 2. Sliding window / two pointers.
 3. Right pointer expands window, left pointer contracts when sum > K.
@@ -479,8 +480,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], ways[0]=1
   '[]'::jsonb
 ),
 (
-  'cfg-ab-1',
-  'q-ab-1',
+  'b0000002-0000-0000-0000-000000000011'::uuid,
+  'b0000002-0000-0000-0000-000000000001'::uuid,
   '1. Earliest finish time greedy algorithm.
 2. Sort meetings by ascending finish time E[i]. Select if S[i] >= lastFinish.
 3. Pseudocode:
@@ -506,8 +507,8 @@ return count
   '[]'::jsonb
 ),
 (
-  'cfg-ab-2',
-  'q-ab-2',
+  'b0000002-0000-0000-0000-000000000012'::uuid,
+  'b0000002-0000-0000-0000-000000000002'::uuid,
   '1. Dijkstra algorithm with min-priority queue, applicable for nonnegative edge weights.
 2. Maintain dist[] initialized to infinity (dist[S]=0) and min-priority queue.
 3. Relaxation: if dist[u] + w < dist[v], dist[v] = dist[u] + w, push (dist[v], v).
@@ -525,8 +526,8 @@ return count
   '[]'::jsonb
 ),
 (
-  'cfg-ab-3',
-  'q-ab-3',
+  'b0000002-0000-0000-0000-000000000013'::uuid,
+  'b0000002-0000-0000-0000-000000000003'::uuid,
   '1. State: dp[i] = maximum sum from first i elements without selecting adjacent elements.
 2. Recurrence: dp[i] = max(dp[i - 1], dp[i - 2] + A[i]).
 3. Base cases: dp[0] = 0, dp[1] = max(0, A[1]).
@@ -542,8 +543,8 @@ return count
   '[]'::jsonb
 ),
 (
-  'cfg-ab-4',
-  'q-ab-4',
+  'b0000002-0000-0000-0000-000000000014'::uuid,
+  'b0000002-0000-0000-0000-000000000004'::uuid,
   '1. Fenwick Tree or Segment Tree storing partial sums.
 2. Assignment update: delta = x - A[i], update tree in O(log N).
 3. Range sum: query(r) - query(l - 1) in O(log N).
@@ -559,8 +560,8 @@ return count
   '[]'::jsonb
 ),
 (
-  'cfg-pr-1',
-  'q-pr-1',
+  'c0000003-0000-0000-0000-000000000011'::uuid,
+  'c0000003-0000-0000-0000-000000000001'::uuid,
   '#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -592,8 +593,8 @@ int main() {
   ]'::jsonb
 ),
 (
-  'cfg-pr-2',
-  'q-pr-2',
+  'c0000003-0000-0000-0000-000000000012'::uuid,
+  'c0000003-0000-0000-0000-000000000002'::uuid,
   '#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -632,8 +633,8 @@ int main() {
   ]'::jsonb
 ),
 (
-  'cfg-pr-3',
-  'q-pr-3',
+  'c0000003-0000-0000-0000-000000000013'::uuid,
+  'c0000003-0000-0000-0000-000000000003'::uuid,
   '#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -686,8 +687,8 @@ int main() {
   ]'::jsonb
 ),
 (
-  'cfg-pr-4',
-  'q-pr-4',
+  'c0000003-0000-0000-0000-000000000014'::uuid,
+  'c0000003-0000-0000-0000-000000000004'::uuid,
   '#include <bits/stdc++.h>
 using namespace std;
 using ll = long long;

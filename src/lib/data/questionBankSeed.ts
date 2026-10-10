@@ -41,7 +41,7 @@ export const seedQuestions: Question[] = [
   // DIVISION A: PROBLEM ANALYSIS
   // ==========================================
   {
-    id: 'q-pa-1',
+    id: 'a0000001-0000-0000-0000-000000000001',
     assessment_id: 'asmt-problem-analysis',
     division: 'problem_analysis',
     order_index: 1,
@@ -73,7 +73,7 @@ For each situation, provide:
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-pa-2',
+    id: 'a0000001-0000-0000-0000-000000000002',
     assessment_id: 'asmt-problem-analysis',
     division: 'problem_analysis',
     order_index: 2,
@@ -99,7 +99,7 @@ Answer the following questions:
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-pa-3',
+    id: 'a0000001-0000-0000-0000-000000000003',
     assessment_id: 'asmt-problem-analysis',
     division: 'problem_analysis',
     order_index: 3,
@@ -130,7 +130,7 @@ You may recommend either a Fenwick Tree or a Segment Tree for System B if your e
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-pa-4',
+    id: 'a0000001-0000-0000-0000-000000000004',
     assessment_id: 'asmt-problem-analysis',
     division: 'problem_analysis',
     order_index: 4,
@@ -161,7 +161,7 @@ You do not need to write code. Explain a complete approach by answering the foll
   // DIVISION B: ALGORITHM BUILDER
   // ==========================================
   {
-    id: 'q-ab-1',
+    id: 'b0000002-0000-0000-0000-000000000001',
     assessment_id: 'asmt-algorithm-builder',
     division: 'algorithm_builder',
     order_index: 1,
@@ -188,7 +188,7 @@ Provide the following:
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-ab-2',
+    id: 'b0000002-0000-0000-0000-000000000002',
     assessment_id: 'asmt-algorithm-builder',
     division: 'algorithm_builder',
     order_index: 2,
@@ -213,7 +213,7 @@ Provide the following:
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-ab-3',
+    id: 'b0000002-0000-0000-0000-000000000003',
     assessment_id: 'asmt-algorithm-builder',
     division: 'algorithm_builder',
     order_index: 3,
@@ -240,7 +240,7 @@ Provide the following:
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-ab-4',
+    id: 'b0000002-0000-0000-0000-000000000004',
     assessment_id: 'asmt-algorithm-builder',
     division: 'algorithm_builder',
     order_index: 4,
@@ -274,7 +274,7 @@ A Fenwick Tree or Segment Tree is acceptable if the approach is correct.`,
   // DIVISION C: PROGRAMMER
   // ==========================================
   {
-    id: 'q-pr-1',
+    id: 'c0000003-0000-0000-0000-000000000001',
     assessment_id: 'asmt-programmer',
     division: 'programmer',
     order_index: 1,
@@ -320,7 +320,7 @@ The distinct values are \`1\`, \`2\`, \`3\`, and \`5\`, so the answer is \`4\`.`
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-pr-2',
+    id: 'c0000003-0000-0000-0000-000000000002',
     assessment_id: 'asmt-programmer',
     division: 'programmer',
     order_index: 2,
@@ -369,7 +369,7 @@ The segment \`[2, 1, 3, 4]\` has sum \`10\` and length \`4\`, the segment \`[1, 
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-pr-3',
+    id: 'c0000003-0000-0000-0000-000000000003',
     assessment_id: 'asmt-programmer',
     division: 'programmer',
     order_index: 3,
@@ -421,7 +421,7 @@ One shortest route moves down along the first column to the bottom row, then mov
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'q-pr-4',
+    id: 'c0000003-0000-0000-0000-000000000004',
     assessment_id: 'asmt-programmer',
     division: 'programmer',
     order_index: 4,
@@ -477,8 +477,8 @@ export const seedPrivateConfigs: PrivateQuestionConfig[] = [
   // DIVISION A PRIVATE CONFIGS
   // ==========================================
   {
-    id: 'cfg-pa-1',
-    question_id: 'q-pa-1',
+    id: 'a0000001-0000-0000-0000-000000000011',
+    question_id: 'a0000001-0000-0000-0000-000000000001',
     reference_answer: `Situation A: Prefix sums. Let prefix[i] be the sum of the first i elements. Query [L, R] = prefix[R] - prefix[L - 1]. Preprocessing O(N), query O(1), total O(N + Q), space O(N).
 Situation B: BFS from S. Unweighted graph, explores in nondecreasing edges from source. Time O(N + M), space O(N + M).
 Situation C: Dijkstra's algorithm. All edge weights are nonnegative. Binary heap gives O((N + M) log N) time, space O(N + M).
@@ -514,8 +514,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], with ways
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-pa-2',
-    question_id: 'q-pa-2',
+    id: 'a0000001-0000-0000-0000-000000000012',
+    question_id: 'a0000001-0000-0000-0000-000000000002',
     reference_answer: `1. Direct approach worst-case is O(NQ). With N = Q = 200,000, that can take ~4 x 10^10 operations, far exceeding the 1-second time limit (~10^8 ops) and resulting in Time Limit Exceeded (TLE).
 2. Build a prefix-sum array.
 3. Preprocessing stores cumulative sums where prefix[i] = sum(A[1..i]). Any query [L, R] is answered in O(1) via prefix[R] - prefix[L - 1].
@@ -558,8 +558,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], with ways
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-pa-3',
-    question_id: 'q-pa-3',
+    id: 'a0000001-0000-0000-0000-000000000013',
+    question_id: 'a0000001-0000-0000-0000-000000000003',
     reference_answer: `1. System A: Prefix sums. Preprocessing O(N), range-sum query O(1), memory O(N).
 2. System B: Fenwick Tree (Binary Indexed Tree) or Segment Tree. Update O(log N), range-sum query O(log N), memory O(N).
 3. A prefix-sum array becomes stale after an element update; updating all subsequent prefix sums requires O(N) operations per update, degenerating to O(N * Q) for Q updates.
@@ -595,8 +595,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], with ways
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-pa-4',
-    question_id: 'q-pa-4',
+    id: 'a0000001-0000-0000-0000-000000000014',
+    question_id: 'a0000001-0000-0000-0000-000000000004',
     reference_answer: `1. Brute force enumerates all O(N^2) contiguous segments and computes their sums, taking O(N^2) or O(N^3) time, which times out for N = 200,000.
 2. Two pointers / sliding window technique.
 3. The right pointer advances to expand the window, adding A[right] to running sum. When sum > K, advance the left pointer and subtract A[left] until sum <= K.
@@ -650,8 +650,8 @@ Situation D: Dynamic programming. ways[i] = ways[i - 1] + ways[i - 2], with ways
   // DIVISION B PRIVATE CONFIGS
   // ==========================================
   {
-    id: 'cfg-ab-1',
-    question_id: 'q-ab-1',
+    id: 'b0000002-0000-0000-0000-000000000011',
+    question_id: 'b0000002-0000-0000-0000-000000000001',
     reference_answer: `1. Earliest Finish Time Greedy Algorithm (Interval Scheduling).
 2. Sort meetings by ascending finish time E[i]. Scan in sorted order and select a meeting if S[i] >= lastFinish.
 3. Pseudocode:
@@ -704,8 +704,8 @@ return count
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-ab-2',
-    question_id: 'q-ab-2',
+    id: 'b0000002-0000-0000-0000-000000000012',
+    question_id: 'b0000002-0000-0000-0000-000000000002',
     reference_answer: `1. Dijkstra's Algorithm with a min-priority queue, appropriate because all edge weights are nonnegative.
 2. Information stored: dist[v] initialized to infinity (dist[S] = 0), and a min-heap priority queue storing (distance, vertex) pairs.
 3. Relaxation step:
@@ -759,8 +759,8 @@ for each edge (u, v, w) from u:
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-ab-3',
-    question_id: 'q-ab-3',
+    id: 'b0000002-0000-0000-0000-000000000013',
+    question_id: 'b0000002-0000-0000-0000-000000000003',
     reference_answer: `1. DP State: dp[i] = maximum subset sum obtainable from the first i elements without selecting adjacent elements.
 2. Recurrence:
 dp[0] = 0
@@ -808,8 +808,8 @@ dp[i] = max(dp[i - 1], dp[i - 2] + A[i])
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-ab-4',
-    question_id: 'q-ab-4',
+    id: 'b0000002-0000-0000-0000-000000000014',
+    question_id: 'b0000002-0000-0000-0000-000000000004',
     reference_answer: `1. Data structure: Fenwick Tree (Binary Indexed Tree) or Segment Tree storing cumulative sums.
 2. Assignment update:
 - Fenwick Tree: Compute delta = x - A[i], add delta to index i by advancing index (i += i & (-i)), and set A[i] = x. Takes O(log N).
@@ -860,8 +860,8 @@ dp[i] = max(dp[i - 1], dp[i - 2] + A[i])
   // DIVISION C PRIVATE CONFIGS
   // ==========================================
   {
-    id: 'cfg-pr-1',
-    question_id: 'q-pr-1',
+    id: 'c0000003-0000-0000-0000-000000000011',
+    question_id: 'c0000003-0000-0000-0000-000000000001',
     reference_answer: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -899,8 +899,8 @@ int main() {
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-pr-2',
-    question_id: 'q-pr-2',
+    id: 'c0000003-0000-0000-0000-000000000012',
+    question_id: 'c0000003-0000-0000-0000-000000000002',
     reference_answer: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -952,8 +952,8 @@ int main() {
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-pr-3',
-    question_id: 'q-pr-3',
+    id: 'c0000003-0000-0000-0000-000000000013',
+    question_id: 'c0000003-0000-0000-0000-000000000003',
     reference_answer: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -1022,8 +1022,8 @@ int main() {
     updated_at: '2026-10-10T00:00:00.000Z',
   },
   {
-    id: 'cfg-pr-4',
-    question_id: 'q-pr-4',
+    id: 'c0000003-0000-0000-0000-000000000014',
+    question_id: 'c0000003-0000-0000-0000-000000000004',
     reference_answer: `#include <bits/stdc++.h>
 using namespace std;
 
