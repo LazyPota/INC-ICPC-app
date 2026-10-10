@@ -35,6 +35,9 @@ export interface Assessment {
   is_published: boolean;
   min_questions: number;
   max_questions: number;
+  global_closing_at?: string | null;
+  is_results_published?: boolean;
+  results_published_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -156,8 +159,74 @@ export interface AiEvaluation {
   flags: string[];
   error_message?: string | null;
   retry_count: number;
+  is_approved?: boolean;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  approved_score?: number | null;
+  review_notes?: string | null;
   evaluated_at: string;
 }
+
+export type EvaluationJobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'requires_review';
+
+export interface EvaluationJob {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  status: EvaluationJobStatus;
+  retry_count: number;
+  last_error?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ReportStatus = 'pending' | 'generating' | 'ready' | 'notification_sent' | 'failed';
+export type EmailNotificationStatus = 'pending' | 'sent' | 'failed' | 'unconfigured';
+
+export interface ReportSummary {
+  assessmentId: string;
+  assessmentTitle: string;
+  division: DivisionType;
+  globalClosingAt: string | null;
+  generatedAtWIB: string;
+  totalRegistered: number;
+  divisionCounts: Record<string, number>;
+  startedCount: number;
+  submittedCount: number;
+  notStartedCount: number;
+  completedEvaluations: number;
+  evaluationsRequiringReview: number;
+  failedEvaluations: number;
+  totalAvailablePoints: number;
+}
+
+export interface ConfidentialReport {
+  id: string;
+  assessment_id: string;
+  status: ReportStatus;
+  pdf_storage_path?: string | null;
+  version: number;
+  email_status: EmailNotificationStatus;
+  email_sent_at?: string | null;
+  email_recipient?: string | null;
+  email_error?: string | null;
+  total_candidates: number;
+  reviewed_count: number;
+  unresolved_count: number;
+  summary_json: ReportSummary | Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CandidateFacingStatus =
+  | 'Not Started'
+  | 'In Progress'
+  | 'Submitted, Evaluation Pending'
+  | 'Evaluation in Progress'
+  | 'Awaiting Administrator Review'
+  | 'Results Published'
+  | 'Evaluation Requires Review';
+
 
 export interface ManualScoreOverride {
   id: string;

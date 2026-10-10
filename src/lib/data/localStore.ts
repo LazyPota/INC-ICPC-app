@@ -12,8 +12,9 @@ import type {
   AiEvaluation,
   ManualScoreOverride,
   AdminAuditLog,
-  DivisionType,
   CodeExecution,
+  EvaluationJob,
+  ConfidentialReport,
 } from '@/types/database';
 
 export class DatabaseConfigurationError extends Error {
@@ -47,53 +48,25 @@ export interface DatabaseSchema {
   score_overrides: ManualScoreOverride[];
   audit_logs: AdminAuditLog[];
   code_executions: CodeExecution[];
+  evaluation_jobs: EvaluationJob[];
+  confidential_reports: ConfidentialReport[];
 }
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const DATA_FILE = path.join(DATA_DIR, 'local_db.json');
 
-const defaultAssessments: Assessment[] = [
-  {
-    id: 'asmt-problem-analysis',
-    division: 'problem_analysis',
-    title: 'ICPC INC 2026 - Problem Analysis Assessment',
-    duration_minutes: 180,
-    is_published: false,
-    min_questions: 3,
-    max_questions: 5,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'asmt-algorithm-builder',
-    division: 'algorithm_builder',
-    title: 'ICPC INC 2026 - Algorithm Builder Assessment',
-    duration_minutes: 180,
-    is_published: false,
-    min_questions: 3,
-    max_questions: 5,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'asmt-programmer',
-    division: 'programmer',
-    title: 'ICPC INC 2026 - Programmer Assessment',
-    duration_minutes: 180,
-    is_published: false,
-    min_questions: 3,
-    max_questions: 5,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+import {
+  defaultAssessments,
+  seedQuestions,
+  seedPrivateConfigs,
+} from '@/lib/data/questionBankSeed';
 
 function getInitialDB(): DatabaseSchema {
   return {
     profiles: [],
     assessments: defaultAssessments,
-    questions: [], // Question bank starts strictly empty as requested!
-    private_configs: [],
+    questions: seedQuestions,
+    private_configs: seedPrivateConfigs,
     attempts: [],
     answers: [],
     integrity_events: [],
@@ -101,6 +74,8 @@ function getInitialDB(): DatabaseSchema {
     score_overrides: [],
     audit_logs: [],
     code_executions: [],
+    evaluation_jobs: [],
+    confidential_reports: [],
   };
 }
 
@@ -116,7 +91,10 @@ export function readLocalDB(): DatabaseSchema {
       return initial;
     }
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(raw) as DatabaseSchema;
+    const parsed = JSON.parse(raw) as DatabaseSchema;
+    parsed.evaluation_jobs ||= [];
+    parsed.confidential_reports ||= [];
+    return parsed;
   } catch (err) {
     if (err instanceof DatabaseConfigurationError) {
       throw err;

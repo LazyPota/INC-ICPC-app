@@ -50,6 +50,8 @@ export const ProctorEventSchema = z.object({
     'window_focus',
     'paste_blocked',
     'copy_blocked',
+    'paste_detected',
+    'copy_detected',
     'context_menu',
     'duplicate_tab',
     'fullscreen_exit',

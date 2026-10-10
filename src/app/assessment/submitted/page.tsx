@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { getCurrentSession } from '@/lib/auth/session';
 import { dataStore } from '@/lib/data/store';
 import { formatToWIB } from '@/lib/utils/time';
-import { CheckCircle2, ShieldCheck, ArrowLeft, Clock, FileCheck } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, FileCheck } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +73,7 @@ export default async function SubmittedPage() {
         <div className="p-3.5 rounded-lg bg-blue-950/40 border border-blue-900/60 text-xs text-blue-300 text-left flex items-start gap-2.5">
           <FileCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
           <span>
-            AI evaluation and administrative scoring will process your answers according to the division rubrics. Results will be announced after the internal qualification period closes.
+            Your assessment has been submitted successfully. Your evaluation is being processed and will remain confidential until the administrator completes the review and publishes the results. You do not need to take any further action.
           </span>
         </div>
 

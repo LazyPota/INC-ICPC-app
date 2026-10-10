@@ -30,6 +30,13 @@ export function MonacoCodeEditor({
       });
     }
 
+    // Dispatch custom event for proctor audit logger
+    editor.onDidPaste(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('monaco_paste_event', { detail: { target: 'MONACO_EDITOR' } }));
+      }
+    });
+
     // Set C++ formatting defaults
     monaco.languages.typescript?.typescriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: true,

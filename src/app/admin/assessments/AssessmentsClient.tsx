@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Assessment, Question, PrivateQuestionConfig, DivisionType, QuestionType, RubricCriterion } from '@/types/database';
+import { formatToWIB } from '@/lib/utils/time';
 import {
   FileQuestion,
   Plus,
@@ -16,6 +17,8 @@ import {
   Sparkles,
   Shield,
   X,
+  Calendar,
+  Clock,
 } from 'lucide-react';
 
 interface AssessmentWithQuestions extends Assessment {
@@ -36,10 +39,41 @@ export function AssessmentsClient({
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUpdatingPublish, setIsUpdatingPublish] = useState(false);
+  const [isUpdatingDeadline, setIsUpdatingDeadline] = useState(false);
+  const [deadlineInput, setDeadlineInput] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const currentAssessment =
     initialAssessments.find((a) => a.division === activeDivision) || initialAssessments[0];
+
+  const handleUpdateDeadline = async (val: string | null) => {
+    if (!currentAssessment) return;
+    setIsUpdatingDeadline(true);
+    setErrorMessage(null);
+    try {
+      let isoString: string | null = null;
+      if (val) {
+        const parsed = new Date(val);
+        if (isNaN(parsed.getTime())) throw new Error('Invalid deadline format');
+        isoString = parsed.toISOString();
+      }
+      const res = await fetch('/api/admin/assessments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentAssessment.id,
+          global_closing_at: isoString,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update global closing deadline');
+      router.refresh();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Error updating deadline');
+    } finally {
+      setIsUpdatingDeadline(false);
+    }
+  };
 
   const handleTogglePublish = async () => {
     if (!currentAssessment) return;
@@ -217,6 +251,62 @@ export function AssessmentsClient({
               }`}>
                 {currentAssessment.questions.filter((q) => q.is_enabled).length} Questions
               </span>
+            </div>
+          </div>
+
+          {/* Global Closing Deadline Panel */}
+          <div className="pt-4 border-t border-slate-800 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                  Cohort Global Closing Deadline (WIB)
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5 max-w-xl">
+                  Determines when the assessment window closes for the entire cohort and when the consolidated PDF report can be prepared. Candidates who reach this deadline will be finalized with their latest saved answers.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold ${
+                  currentAssessment.global_closing_at
+                    ? 'bg-blue-950/70 text-blue-300 border border-blue-800'
+                    : 'bg-amber-950/70 text-amber-300 border border-amber-800'
+                }`}>
+                  {currentAssessment.global_closing_at
+                    ? formatToWIB(currentAssessment.global_closing_at)
+                    : 'Deadline Not Configured'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <input
+                type="datetime-local"
+                value={deadlineInput}
+                onChange={(e) => setDeadlineInput(e.target.value)}
+                className="px-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-lg text-white font-mono focus:border-blue-500 focus:outline-none"
+              />
+              <button
+                onClick={() => handleUpdateDeadline(deadlineInput)}
+                disabled={isUpdatingDeadline || !deadlineInput}
+                className="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-lg transition-colors"
+              >
+                {isUpdatingDeadline ? 'Saving...' : 'Set Closing Deadline'}
+              </button>
+              {currentAssessment.global_closing_at && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Clear global closing deadline? The final consolidated report will NOT be generated until a deadline is set.')) {
+                      handleUpdateDeadline(null);
+                    }
+                  }}
+                  disabled={isUpdatingDeadline}
+                  className="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                >
+                  Clear Deadline
+                </button>
+              )}
             </div>
           </div>
         </section>

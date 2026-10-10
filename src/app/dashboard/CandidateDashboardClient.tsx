@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Profile, Assessment, AssessmentAttempt, DivisionType } from '@/types/database';
+import type { Profile, Assessment, AssessmentAttempt, DivisionType, CandidateFacingStatus } from '@/types/database';
 import { formatToWIB } from '@/lib/utils/time';
 import {
   Terminal,
@@ -23,6 +23,10 @@ interface Props {
   profile: Profile;
   assessment: Assessment | null;
   attempt: AssessmentAttempt | null;
+  evaluationStatus: CandidateFacingStatus;
+  approvedScore: number | null;
+  maxScore: number | null;
+  approvedFeedback: string | null;
 }
 
 const divisionNames: Record<DivisionType, string> = {
@@ -31,7 +35,15 @@ const divisionNames: Record<DivisionType, string> = {
   programmer: 'Programmer',
 };
 
-export function CandidateDashboardClient({ profile, assessment, attempt }: Props) {
+export function CandidateDashboardClient({
+  profile,
+  assessment,
+  attempt,
+  evaluationStatus,
+  approvedScore,
+  maxScore,
+  approvedFeedback,
+}: Props) {
   const router = useRouter();
   const [selectedDivision, setSelectedDivision] = useState<DivisionType>(profile.intended_division);
   const [isChangingDivision, setIsChangingDivision] = useState(false);
@@ -110,39 +122,56 @@ export function CandidateDashboardClient({ profile, assessment, attempt }: Props
         </span>
       );
     }
-    if (!attempt) {
-      return (
-        <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/70 text-emerald-300 border border-emerald-800">
-          Available to Start
-        </span>
-      );
+    switch (evaluationStatus) {
+      case 'Not Started':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/70 text-emerald-300 border border-emerald-800">
+            Available to Start
+          </span>
+        );
+      case 'In Progress':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-950/80 text-blue-300 border border-blue-700 animate-pulse">
+            In Progress
+          </span>
+        );
+      case 'Submitted, Evaluation Pending':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-950/70 text-purple-300 border border-purple-800">
+            Submitted, Evaluation Pending
+          </span>
+        );
+      case 'Evaluation in Progress':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-950/80 text-indigo-300 border border-indigo-700 animate-pulse">
+            Evaluation in Progress
+          </span>
+        );
+      case 'Awaiting Administrator Review':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-950/80 text-amber-300 border border-amber-800">
+            Awaiting Administrator Review
+          </span>
+        );
+      case 'Evaluation Requires Review':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-rose-950/80 text-rose-300 border border-rose-800">
+            Evaluation Requires Review
+          </span>
+        );
+      case 'Results Published':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-900/80 text-emerald-200 border border-emerald-600">
+            Results Published
+          </span>
+        );
+      default:
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300">
+            {evaluationStatus}
+          </span>
+        );
     }
-    if (attempt.status === 'in_progress') {
-      return (
-        <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-950/80 text-blue-300 border border-blue-700 animate-pulse">
-          In Progress
-        </span>
-      );
-    }
-    if (attempt.status === 'submitted') {
-      return (
-        <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-950/70 text-purple-300 border border-purple-800">
-          Submitted • Grading Pending
-        </span>
-      );
-    }
-    if (attempt.status === 'expired') {
-      return (
-        <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-950/70 text-red-300 border border-red-800">
-          Time Expired • Auto-Submitted
-        </span>
-      );
-    }
-    return (
-      <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300">
-        {attempt.status}
-      </span>
-    );
   };
 
   return (
@@ -276,23 +305,75 @@ export function CandidateDashboardClient({ profile, assessment, attempt }: Props
 
           {/* Attempt Info / Action */}
           {isAttemptCompleted ? (
-            <div className="bg-slate-950/90 border border-purple-900/60 rounded-xl p-6 text-center space-y-3">
-              <CheckCircle2 className="w-10 h-10 text-purple-400 mx-auto" />
-              <h3 className="text-lg font-bold text-white">Assessment Successfully Submitted</h3>
-              <p className="text-xs text-slate-300 max-w-lg mx-auto">
-                Your answers have been finalized and recorded securely in the database on{' '}
-                <span className="font-mono text-purple-300">
-                  {attempt?.submitted_at ? formatToWIB(attempt.submitted_at) : 'Completed'}
-                </span>
-                . The qualification evaluation is underway.
-              </p>
-              <button
-                onClick={() => router.push('/assessment/submitted')}
-                className="mt-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs rounded-lg transition-colors"
-              >
-                View Submission Receipt
-              </button>
-            </div>
+            evaluationStatus === 'Results Published' ? (
+              <div className="bg-slate-950/90 border border-emerald-800/80 rounded-xl p-6 text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-950/80 border border-emerald-700 text-emerald-400 flex items-center justify-center mx-auto">
+                  <Award className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+                    Official Qualification Results
+                  </span>
+                  <h3 className="text-xl font-bold text-white mt-1">Results Officially Published</h3>
+                </div>
+
+                <div className="p-4 bg-emerald-950/30 border border-emerald-900/60 rounded-xl max-w-md mx-auto">
+                  <span className="text-xs text-slate-400 block mb-1">Final Approved Score</span>
+                  <div className="text-3xl font-extrabold text-emerald-300 font-mono">
+                    {approvedScore ?? 0} <span className="text-sm font-sans text-slate-400 font-normal">/ {maxScore ?? 100} pts</span>
+                  </div>
+                </div>
+
+                {approvedFeedback && (
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 max-w-lg mx-auto text-left">
+                    <span className="text-xs font-semibold text-slate-300 block mb-1">Committee Notes & Feedback</span>
+                    <p className="text-xs text-slate-400 whitespace-pre-line leading-relaxed">{approvedFeedback}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => router.push('/assessment/submitted')}
+                  className="mt-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs rounded-lg transition-colors"
+                >
+                  View Submission Receipt
+                </button>
+              </div>
+            ) : (
+              <div className="bg-slate-950/90 border border-purple-900/60 rounded-xl p-6 text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-purple-950/80 border border-purple-800 text-purple-400 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider block">
+                    Submission Confirmed
+                  </span>
+                  <h3 className="text-lg font-bold text-white mt-0.5">Assessment Successfully Submitted</h3>
+                </div>
+
+                <div className="bg-purple-950/30 border border-purple-900/50 rounded-xl p-4 max-w-xl mx-auto text-left space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-purple-300">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Confidential Evaluation Notice</span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Your assessment has been submitted successfully. Your evaluation is being processed and will remain confidential until the administrator completes the review and publishes the results. You do not need to take any further action.
+                  </p>
+                  <div className="pt-2 border-t border-purple-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-400">
+                    <span>Evaluation Status: <strong className="text-slate-200">{evaluationStatus}</strong></span>
+                    <span className="font-mono">
+                      Submitted: {attempt?.submitted_at ? formatToWIB(attempt.submitted_at) : 'Finalized'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => router.push('/assessment/submitted')}
+                  className="mt-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs rounded-lg transition-colors"
+                >
+                  View Submission Receipt
+                </button>
+              </div>
+            )
           ) : isAttemptActive ? (
             <div className="bg-blue-950/30 border border-blue-800/80 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>

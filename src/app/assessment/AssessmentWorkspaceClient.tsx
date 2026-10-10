@@ -60,6 +60,13 @@ export function AssessmentWorkspaceClient({
     return attempt.active_session_id || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   });
 
+  const effectiveDeadlineAt = React.useMemo(() => {
+    if (!assessment.global_closing_at) return attempt.deadline_at;
+    const attemptDeadlineMs = new Date(attempt.deadline_at).getTime();
+    const globalDeadlineMs = new Date(assessment.global_closing_at).getTime();
+    return globalDeadlineMs < attemptDeadlineMs ? assessment.global_closing_at : attempt.deadline_at;
+  }, [attempt.deadline_at, assessment.global_closing_at]);
+
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Synchronize sessionStorage
@@ -254,7 +261,7 @@ export function AssessmentWorkspaceClient({
           <AutosaveIndicator state={saveState} lastSavedAt={lastSavedTime} />
 
           <AssessmentCountdown
-            deadlineAt={attempt.deadline_at}
+            deadlineAt={effectiveDeadlineAt}
             onExpire={handleFinalize}
           />
 

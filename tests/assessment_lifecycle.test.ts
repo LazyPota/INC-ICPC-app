@@ -3,6 +3,14 @@ import { calculateRemainingSeconds, formatCountdown, isDeadlineExpired } from '@
 import { dataStore } from '@/lib/data/store';
 
 describe('Assessment Lifecycle & Timer Integrity', () => {
+  beforeEach(async () => {
+    await dataStore.updateAssessment({
+      id: 'asmt-problem-analysis',
+      global_closing_at: null,
+      is_results_published: false,
+    });
+  });
+
   it('should calculate remaining seconds correctly and format to HH:MM:SS', () => {
     const now = Date.now();
     const futureDeadline = new Date(now + 180 * 60 * 1000).toISOString(); // 3 hours

@@ -26,6 +26,15 @@ export async function POST(request: Request) {
       reason: validated.reason,
     });
 
+    if (existingEval) {
+      await dataStore.approveEvaluation(
+        existingEval.id,
+        session.email,
+        validated.overrideScore,
+        validated.reason
+      );
+    }
+
     await dataStore.logAdminAudit({
       admin_email: session.email,
       action: 'OVERRIDE_SCORE',

@@ -14,15 +14,25 @@ export default async function DashboardPage() {
 
   // Get matching assessment for candidate's division only
   const assessment = await dataStore.getAssessmentByDivision(session.profile.intended_division);
-  const attempt = assessment
-    ? await dataStore.getAttemptByCandidateAndAssessment(session.userId, assessment.id)
-    : null;
+  const statusInfo = assessment
+    ? await dataStore.getCandidateFacingStatus(session.userId, assessment.id)
+    : {
+        status: 'Not Started' as const,
+        attempt: null,
+        approvedScore: null,
+        maxScore: null,
+        feedback: null,
+      };
 
   return (
     <CandidateDashboardClient
       profile={session.profile}
       assessment={assessment}
-      attempt={attempt}
+      attempt={statusInfo.attempt}
+      evaluationStatus={statusInfo.status}
+      approvedScore={statusInfo.approvedScore}
+      maxScore={statusInfo.maxScore}
+      approvedFeedback={statusInfo.feedback}
     />
   );
 }

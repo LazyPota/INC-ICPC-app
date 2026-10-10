@@ -10,8 +10,8 @@ import {
   Brain,
   ShieldCheck,
   Download,
-  LogOut,
   ExternalLink,
+  FileText,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -86,6 +86,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             >
               <ShieldCheck className="w-4 h-4 text-amber-400" />
               <span>Integrity & Proctor Logs</span>
+            </Link>
+
+            <Link
+              href="/admin/reports"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-900 transition-colors"
+            >
+              <FileText className="w-4 h-4 text-rose-400" />
+              <span>Confidential Reports</span>
             </Link>
 
             <a

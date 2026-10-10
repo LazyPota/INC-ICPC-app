@@ -20,6 +20,9 @@ import type {
   AdminAuditLog,
   DivisionType,
   CodeExecution,
+  EvaluationJob,
+  ConfidentialReport,
+  CandidateFacingStatus,
 } from '@/types/database';
 
 export { DatabaseConfigurationError, isProductionEnvironment, assertPersistenceConfigured };
@@ -90,6 +93,16 @@ export const dataStore = {
     return db.assessments.find((a) => a.division === division) || null;
   },
 
+  async getAssessmentById(id: string): Promise<Assessment | null> {
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase.from('assessments').select('*').eq('id', id).single();
+      return data || null;
+    }
+    const db = readLocalDB();
+    return db.assessments.find((a) => a.id === id) || null;
+  },
+
   async updateAssessment(assessment: Partial<Assessment> & { id: string }): Promise<Assessment> {
     if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
@@ -104,6 +117,26 @@ export const dataStore = {
     writeLocalDB(db);
     return db.assessments[index];
   },
+
+  async publishAssessmentResults(assessmentId: string, adminEmail: string): Promise<Assessment> {
+    const publishedAt = new Date().toISOString();
+    const updated = await this.updateAssessment({
+      id: assessmentId,
+      is_results_published: true,
+      results_published_at: publishedAt,
+    });
+
+    await this.logAdminAudit({
+      admin_email: adminEmail,
+      action: 'PUBLISH_RESULTS',
+      target_type: 'ASSESSMENT',
+      target_id: assessmentId,
+      details: { publishedAt, division: updated.division },
+    });
+
+    return updated;
+  },
+
 
   // ==========================================
   // Questions & Private Configs
@@ -272,7 +305,7 @@ export const dataStore = {
   },
 
   /**
-   * Atomic start: calculates authoritative 180-minute deadline on the server
+   * Atomic start: calculates authoritative deadline as min(individual 180m, global_closing_at)
    */
   async startAttempt(candidateId: string, assessmentId: string, sessionId: string): Promise<AssessmentAttempt> {
     const existing = await this.getAttemptByCandidateAndAssessment(candidateId, assessmentId);
@@ -281,16 +314,24 @@ export const dataStore = {
       return existing;
     }
 
+    const assessment = await this.getAssessmentById(assessmentId);
     const now = new Date();
-    // 180 minutes duration
-    const deadline = new Date(now.getTime() + 180 * 60 * 1000);
+    const durationMinutes = assessment?.duration_minutes || 180;
+    const individualDeadline = new Date(now.getTime() + durationMinutes * 60 * 1000);
+    let effectiveDeadline = individualDeadline;
+    if (assessment?.global_closing_at) {
+      const globalDeadline = new Date(assessment.global_closing_at);
+      if (globalDeadline.getTime() < individualDeadline.getTime()) {
+        effectiveDeadline = globalDeadline;
+      }
+    }
 
     const newAttempt: AssessmentAttempt = {
       id: crypto.randomUUID(),
       candidate_id: candidateId,
       assessment_id: assessmentId,
       started_at: now.toISOString(),
-      deadline_at: deadline.toISOString(),
+      deadline_at: effectiveDeadline.toISOString(),
       submitted_at: null,
       status: 'in_progress',
       active_session_id: sessionId,
@@ -319,8 +360,17 @@ export const dataStore = {
     const now = new Date().toISOString();
     const isSameSession = attempt.active_session_id === sessionId;
 
-    // Check expiration
-    if (new Date(attempt.deadline_at).getTime() <= Date.now() && attempt.status === 'in_progress') {
+    // Check expiration against individual deadline and global closing deadline
+    const nowMs = Date.now();
+    let isExpired = new Date(attempt.deadline_at).getTime() <= nowMs;
+    if (!isExpired) {
+      const assessment = await this.getAssessmentById(attempt.assessment_id);
+      if (assessment?.global_closing_at && new Date(assessment.global_closing_at).getTime() <= nowMs) {
+        isExpired = true;
+      }
+    }
+
+    if (isExpired && attempt.status === 'in_progress') {
       await this.finalizeAttempt(attemptId, 'expired');
     }
 
@@ -340,6 +390,38 @@ export const dataStore = {
     }
 
     return { valid: isSameSession, activeSessionId: attempt.active_session_id };
+  },
+
+  async finalizeExpiredAttemptsAtGlobalDeadline(assessmentId: string): Promise<AssessmentAttempt[]> {
+    const assessment = await this.getAssessmentById(assessmentId);
+    if (!assessment || !assessment.global_closing_at) {
+      return [];
+    }
+    const globalDeadline = new Date(assessment.global_closing_at).getTime();
+    if (Date.now() < globalDeadline) {
+      return [];
+    }
+
+    let attemptsToFinalize: AssessmentAttempt[] = [];
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase
+        .from('assessment_attempts')
+        .select('*')
+        .eq('assessment_id', assessmentId)
+        .eq('status', 'in_progress');
+      attemptsToFinalize = data || [];
+    } else {
+      const db = readLocalDB();
+      attemptsToFinalize = db.attempts.filter((a) => a.assessment_id === assessmentId && a.status === 'in_progress');
+    }
+
+    const finalizedAttempts: AssessmentAttempt[] = [];
+    for (const att of attemptsToFinalize) {
+      const fin = await this.finalizeAttempt(att.id, 'expired');
+      finalizedAttempts.push(fin);
+    }
+    return finalizedAttempts;
   },
 
   async finalizeAttempt(attemptId: string, finalStatus: 'submitted' | 'expired' = 'submitted'): Promise<AssessmentAttempt> {
@@ -438,9 +520,20 @@ export const dataStore = {
     const attempt = await this.getAttemptById(attemptId);
     if (!attempt) throw new Error('Attempt not found');
 
-    // Deadline check
-    const isPastDeadline = new Date(attempt.deadline_at).getTime() <= Date.now();
+    // Deadline check (both individual deadline and global closing deadline)
+    const nowMs = Date.now();
+    let isPastDeadline = new Date(attempt.deadline_at).getTime() <= nowMs;
+    if (!isPastDeadline) {
+      const assessment = await this.getAssessmentById(attempt.assessment_id);
+      if (assessment?.global_closing_at && new Date(assessment.global_closing_at).getTime() <= nowMs) {
+        isPastDeadline = true;
+      }
+    }
+
     if (attempt.status !== 'in_progress' || isPastDeadline || attempt.submitted_at) {
+      if (attempt.status === 'in_progress' && isPastDeadline) {
+        await this.finalizeAttempt(attemptId, 'expired');
+      }
       throw new Error('Assessment deadline has expired or has already been submitted');
     }
 
@@ -800,4 +893,358 @@ export const dataStore = {
       };
     });
   },
+
+  // ==========================================
+  // Evaluation Jobs Queue
+  // ==========================================
+  async enqueueEvaluationJob(attemptId: string, questionId: string): Promise<EvaluationJob> {
+    const now = new Date().toISOString();
+    const job: EvaluationJob = {
+      id: crypto.randomUUID(),
+      attempt_id: attemptId,
+      question_id: questionId,
+      status: 'pending',
+      retry_count: 0,
+      last_error: null,
+      created_at: now,
+      updated_at: now,
+    };
+
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('evaluation_jobs')
+        .upsert(job, { onConflict: 'attempt_id,question_id' })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    }
+
+    const db = readLocalDB();
+    const idx = db.evaluation_jobs.findIndex((j) => j.attempt_id === attemptId && j.question_id === questionId);
+    if (idx >= 0) {
+      db.evaluation_jobs[idx] = { ...db.evaluation_jobs[idx], status: 'pending', updated_at: now };
+      writeLocalDB(db);
+      return db.evaluation_jobs[idx];
+    } else {
+      db.evaluation_jobs.push(job);
+      writeLocalDB(db);
+      return job;
+    }
+  },
+
+  async enqueueEvaluationJobsForAttempt(attemptId: string, questionIds: string[]): Promise<EvaluationJob[]> {
+    const jobs: EvaluationJob[] = [];
+    for (const qId of questionIds) {
+      const job = await this.enqueueEvaluationJob(attemptId, qId);
+      jobs.push(job);
+    }
+    return jobs;
+  },
+
+  async getEvaluationJobsForAttempt(attemptId: string): Promise<EvaluationJob[]> {
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase.from('evaluation_jobs').select('*').eq('attempt_id', attemptId);
+      return data || [];
+    }
+    const db = readLocalDB();
+    return db.evaluation_jobs.filter((j) => j.attempt_id === attemptId);
+  },
+
+  async updateEvaluationJob(id: string, updates: Partial<EvaluationJob>): Promise<EvaluationJob> {
+    const now = new Date().toISOString();
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('evaluation_jobs')
+        .update({ ...updates, updated_at: now })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    }
+    const db = readLocalDB();
+    const idx = db.evaluation_jobs.findIndex((j) => j.id === id);
+    if (idx === -1) throw new Error('Evaluation job not found');
+    db.evaluation_jobs[idx] = { ...db.evaluation_jobs[idx], ...updates, updated_at: now };
+    writeLocalDB(db);
+    return db.evaluation_jobs[idx];
+  },
+
+  async getPendingEvaluationJobs(limit = 10): Promise<EvaluationJob[]> {
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase
+        .from('evaluation_jobs')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(limit);
+      return data || [];
+    }
+    const db = readLocalDB();
+    return db.evaluation_jobs.filter((j) => j.status === 'pending').slice(0, limit);
+  },
+
+  async approveEvaluation(
+    evaluationId: string,
+    adminEmail: string,
+    approvedScore?: number,
+    reviewNotes?: string
+  ): Promise<AiEvaluation> {
+    const now = new Date().toISOString();
+    let existing: AiEvaluation | null = null;
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase.from('ai_evaluations').select('*').eq('id', evaluationId).single();
+      existing = data || null;
+    } else {
+      const db = readLocalDB();
+      existing = db.ai_evaluations.find((e) => e.id === evaluationId) || null;
+    }
+
+    if (!existing) throw new Error('Evaluation not found');
+    const finalScore = approvedScore !== undefined ? approvedScore : (existing.approved_score ?? existing.total_score);
+
+    const updates: Partial<AiEvaluation> = {
+      is_approved: true,
+      approved_by: adminEmail,
+      approved_at: now,
+      approved_score: finalScore,
+      review_notes: reviewNotes !== undefined ? reviewNotes : existing.review_notes,
+    };
+
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('ai_evaluations')
+        .update(updates)
+        .eq('id', evaluationId)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      existing = data;
+    } else {
+      const db = readLocalDB();
+      const idx = db.ai_evaluations.findIndex((e) => e.id === evaluationId);
+      if (idx >= 0) {
+        db.ai_evaluations[idx] = { ...db.ai_evaluations[idx], ...updates };
+        writeLocalDB(db);
+        existing = db.ai_evaluations[idx];
+      }
+    }
+
+    await this.logAdminAudit({
+      admin_email: adminEmail,
+      action: 'APPROVE_EVALUATION',
+      target_type: 'AI_EVALUATION',
+      target_id: evaluationId,
+      details: { approvedScore: finalScore, reviewNotes },
+    });
+
+    return existing!;
+  },
+
+  // ==========================================
+  // Confidential Reports
+  // ==========================================
+  async createConfidentialReport(report: Omit<ConfidentialReport, 'id' | 'created_at' | 'updated_at'>): Promise<ConfidentialReport> {
+    const now = new Date().toISOString();
+    const newReport: ConfidentialReport = {
+      ...report,
+      id: crypto.randomUUID(),
+      created_at: now,
+      updated_at: now,
+    };
+
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('confidential_reports')
+        .upsert(newReport, { onConflict: 'assessment_id,version' })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    }
+
+    const db = readLocalDB();
+    const existingIdx = db.confidential_reports.findIndex(
+      (r) => r.assessment_id === report.assessment_id && r.version === report.version
+    );
+    if (existingIdx >= 0) {
+      db.confidential_reports[existingIdx] = { ...db.confidential_reports[existingIdx], ...newReport };
+      writeLocalDB(db);
+      return db.confidential_reports[existingIdx];
+    } else {
+      db.confidential_reports.push(newReport);
+      writeLocalDB(db);
+      return newReport;
+    }
+  },
+
+  async getConfidentialReportById(id: string): Promise<ConfidentialReport | null> {
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase.from('confidential_reports').select('*').eq('id', id).single();
+      return data || null;
+    }
+    const db = readLocalDB();
+    return db.confidential_reports.find((r) => r.id === id) || null;
+  },
+
+  async getConfidentialReportsForAssessment(assessmentId: string): Promise<ConfidentialReport[]> {
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase
+        .from('confidential_reports')
+        .select('*')
+        .eq('assessment_id', assessmentId)
+        .order('version', { ascending: false });
+      return data || [];
+    }
+    const db = readLocalDB();
+    return db.confidential_reports
+      .filter((r) => r.assessment_id === assessmentId)
+      .sort((a, b) => b.version - a.version);
+  },
+
+  async getAllConfidentialReports(): Promise<ConfidentialReport[]> {
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data } = await supabase
+        .from('confidential_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+    const db = readLocalDB();
+    return [...db.confidential_reports].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async updateConfidentialReport(id: string, updates: Partial<ConfidentialReport>): Promise<ConfidentialReport> {
+    const now = new Date().toISOString();
+    if (isSupabaseConfigured()) {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('confidential_reports')
+        .update({ ...updates, updated_at: now })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    }
+    const db = readLocalDB();
+    const idx = db.confidential_reports.findIndex((r) => r.id === id);
+    if (idx === -1) throw new Error('Report not found');
+    db.confidential_reports[idx] = { ...db.confidential_reports[idx], ...updates, updated_at: now };
+    writeLocalDB(db);
+    return db.confidential_reports[idx];
+  },
+
+  async getLatestConfidentialReport(assessmentId: string): Promise<ConfidentialReport | null> {
+    const reports = await this.getConfidentialReportsForAssessment(assessmentId);
+    return reports[0] || null;
+  },
+
+  // ==========================================
+  // Candidate Facing Status Helper
+  // ==========================================
+  async getCandidateFacingStatus(candidateId: string, assessmentId: string): Promise<{
+    status: CandidateFacingStatus;
+    attempt: AssessmentAttempt | null;
+    approvedScore: number | null;
+    maxScore: number | null;
+    feedback: string | null;
+  }> {
+    const attempt = await this.getAttemptByCandidateAndAssessment(candidateId, assessmentId);
+    if (!attempt) {
+      return {
+        status: 'Not Started',
+        attempt: null,
+        approvedScore: null,
+        maxScore: null,
+        feedback: null,
+      };
+    }
+
+    if (attempt.status === 'in_progress') {
+      return {
+        status: 'In Progress',
+        attempt,
+        approvedScore: null,
+        maxScore: null,
+        feedback: null,
+      };
+    }
+
+    const assessment = await this.getAssessmentById(assessmentId);
+    const questions = await this.getQuestionsForAssessment(assessmentId, false);
+    const totalMaxScore = questions.reduce((sum, q) => sum + Number(q.max_score || 0), 0);
+
+    // If results published, return approved results
+    if (assessment?.is_results_published) {
+      const evals = await this.getEvaluationsForAttempt(attempt.id);
+      const overrides = await this.getScoreOverridesForAttempt(attempt.id);
+
+      let totalScore = 0;
+      evals.forEach((ev) => {
+        const ov = overrides.find((o) => o.question_id === ev.question_id);
+        if (ov) {
+          totalScore += ov.override_score;
+        } else if (ev.approved_score !== undefined && ev.approved_score !== null) {
+          totalScore += ev.approved_score;
+        } else {
+          totalScore += ev.total_score;
+        }
+      });
+
+      const feedbackNotes = evals
+        .map((e) => e.review_notes)
+        .filter(Boolean)
+        .join('\n\n');
+
+      return {
+        status: 'Results Published',
+        attempt,
+        approvedScore: Math.round(totalScore * 100) / 100,
+        maxScore: totalMaxScore,
+        feedback: feedbackNotes || 'Assessment review completed by the qualification committee.',
+      };
+    }
+
+    // Results NOT published: strictly confidential!
+    const jobs = await this.getEvaluationJobsForAttempt(attempt.id);
+    const evals = await this.getEvaluationsForAttempt(attempt.id);
+
+    let status: CandidateFacingStatus = 'Submitted, Evaluation Pending';
+    if (jobs.some((j) => j.status === 'processing')) {
+      status = 'Evaluation in Progress';
+    } else if (
+      jobs.some((j) => j.status === 'failed' || j.status === 'requires_review') ||
+      evals.some((e) => e.status === 'failed' || e.status === 'needs_review')
+    ) {
+      status = 'Evaluation Requires Review';
+    } else if (
+      (jobs.length > 0 && jobs.every((j) => j.status === 'completed')) ||
+      (jobs.length === 0 && evals.length > 0 && evals.every((e) => e.status === 'completed'))
+    ) {
+      status = 'Awaiting Administrator Review';
+    } else {
+      status = 'Submitted, Evaluation Pending';
+    }
+
+    return {
+      status,
+      attempt,
+      approvedScore: null,
+      maxScore: null,
+      feedback: null,
+    };
+  },
 };
+

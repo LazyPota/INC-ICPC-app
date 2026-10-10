@@ -113,13 +113,48 @@ export function ProctorMonitor({
       }
     };
 
+    // 6. Clipboard Activity Detection (Paste & Copy)
+    const handlePaste = (e: ClipboardEvent) => {
+      const clipboardText = e.clipboardData?.getData('text') || '';
+      const charCount = clipboardText.length;
+      sendEvent('paste_detected', 'medium', {
+        charCount,
+        previewSnippet: clipboardText.slice(0, 30),
+        target: (e.target as HTMLElement)?.tagName,
+        timestamp: new Date().toISOString(),
+      });
+      showWarning(`Clipboard paste detected (${charCount} characters) and recorded in integrity audit trail.`);
+    };
+
+    const handleCopy = () => {
+      const selection = window.getSelection()?.toString() || '';
+      const charCount = selection.length;
+      sendEvent('copy_detected', 'low', {
+        charCount,
+        timestamp: new Date().toISOString(),
+      });
+    };
+
+    const handleMonacoPaste = (e: Event) => {
+      const customEv = e as CustomEvent;
+      sendEvent('paste_detected', 'medium', {
+        target: 'MONACO_CODE_EDITOR',
+        detail: customEv.detail,
+        timestamp: new Date().toISOString(),
+      });
+      showWarning('Code editor paste detected and recorded in integrity audit trail.');
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('paste', handlePaste);
+    document.addEventListener('copy', handleCopy);
+    window.addEventListener('monaco_paste_event', handleMonacoPaste);
 
-    // 6. Periodic Heartbeat to Server
+    // 7. Periodic Heartbeat to Server
     const heartbeatInterval = setInterval(() => {
       fetch('/api/assessment/heartbeat', {
         method: 'POST',
@@ -142,6 +177,9 @@ export function ProctorMonitor({
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('copy', handleCopy);
+      window.removeEventListener('monaco_paste_event', handleMonacoPaste);
       clearInterval(heartbeatInterval);
       if (channel) channel.close();
       if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);

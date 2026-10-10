@@ -20,7 +20,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, is_published, min_questions, max_questions, duration_minutes } = body;
+    const { id, is_published, min_questions, max_questions, duration_minutes, global_closing_at } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Missing assessment id' }, { status: 400 });
@@ -50,6 +50,7 @@ export async function PATCH(request: Request) {
       ...(min_questions !== undefined ? { min_questions } : {}),
       ...(max_questions !== undefined ? { max_questions } : {}),
       ...(duration_minutes !== undefined ? { duration_minutes } : {}),
+      ...(global_closing_at !== undefined ? { global_closing_at } : {}),
     });
 
     await dataStore.logAdminAudit({
@@ -57,7 +58,7 @@ export async function PATCH(request: Request) {
       action: 'UPDATE_ASSESSMENT',
       target_type: 'assessment',
       target_id: id,
-      details: { is_published, min_questions, max_questions },
+      details: { is_published, min_questions, max_questions, global_closing_at },
     });
 
     return NextResponse.json({ success: true, assessment: updated });
