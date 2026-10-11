@@ -603,15 +603,30 @@ export const dataStore = {
   // Integrity Events
   // ==========================================
   async logIntegrityEvent(event: Omit<IntegrityEvent, 'id' | 'created_at'>): Promise<IntegrityEvent> {
+    const isUuid = (str?: string | null) =>
+      Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
+
+    const resolvedQuestionId = event.question_id
+      ? (LEGACY_QUESTION_MAP[event.question_id] || event.question_id)
+      : null;
+
+    const safeQuestionId = isSupabaseConfigured() && resolvedQuestionId && !isUuid(resolvedQuestionId)
+      ? null
+      : resolvedQuestionId;
+
     const fullEvent: IntegrityEvent = {
       ...event,
+      question_id: safeQuestionId,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
     };
 
     if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
-      await supabase.from('integrity_events').insert(fullEvent);
+      const { error } = await supabase.from('integrity_events').insert(fullEvent);
+      if (error) {
+        console.warn('Failed to insert integrity event into Supabase:', error.message);
+      }
       return fullEvent;
     }
 

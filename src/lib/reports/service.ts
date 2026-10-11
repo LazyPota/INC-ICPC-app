@@ -14,13 +14,20 @@ export interface GenerateReportResult {
   isExisting?: boolean;
 }
 
+export interface GenerateReportOptions {
+  force?: boolean;
+  triggeredBy?: string;
+  candidateIds?: string[];
+  hideIntegrityLogs?: boolean;
+}
+
 /**
  * Generates the consolidated PDF report for an assessment cohort.
  * Idempotent, persistent, and verifiable.
  */
 export async function generateAssessmentReport(
   assessmentId: string,
-  options?: { force?: boolean; triggeredBy?: string }
+  options?: GenerateReportOptions
 ): Promise<GenerateReportResult> {
   const assessment = await dataStore.getAssessmentById(assessmentId);
   if (!assessment) {
@@ -51,9 +58,18 @@ export async function generateAssessmentReport(
   // 3. Finalize any remaining in-progress attempts using their latest persisted answers
   await dataStore.finalizeExpiredAttemptsAtGlobalDeadline(assessmentId);
 
-  // 4. Check for existing report to ensure idempotency
+  // 4. Check for existing report to ensure idempotency (unless custom filter/options or force is requested)
+  const isCustomRun = Boolean(
+    options?.force ||
+    (options?.candidateIds && options.candidateIds.length > 0) ||
+    options?.hideIntegrityLogs !== undefined
+  );
   const existingReport = await dataStore.getLatestConfidentialReport(assessmentId);
-  if (existingReport && (existingReport.status === 'ready' || existingReport.status === 'notification_sent') && !options?.force) {
+  if (
+    existingReport &&
+    (existingReport.status === 'ready' || existingReport.status === 'notification_sent') &&
+    !isCustomRun
+  ) {
     return {
       success: true,
       report: existingReport,
@@ -70,8 +86,21 @@ export async function generateAssessmentReport(
   const divisionCandidates = allCandidates.filter((c) => c.profile.intended_division === assessment.division);
   const questions = await dataStore.getQuestionsForAssessment(assessmentId, true);
 
+  // Filter candidates if specific candidateIds were requested
+  const targetCandidates = options?.candidateIds && options.candidateIds.length > 0
+    ? divisionCandidates.filter((c) => options.candidateIds!.includes(c.profile.id))
+    : divisionCandidates;
+
+  if (targetCandidates.length === 0) {
+    return {
+      success: false,
+      reason: 'GENERATION_ERROR',
+      message: 'No candidates matched the specified filter criteria.',
+    };
+  }
+
   // For any candidate whose attempt has pending jobs, process them
-  for (const cand of divisionCandidates) {
+  for (const cand of targetCandidates) {
     if (cand.attempt) {
       await runEvaluationJobsForAttempt(cand.attempt.id);
     }
@@ -82,7 +111,7 @@ export async function generateAssessmentReport(
   let completedEvalsCount = 0;
   let unresolvedEvalsCount = 0;
 
-  for (const cand of divisionCandidates) {
+  for (const cand of targetCandidates) {
     const attempt = cand.attempt;
     const answers = attempt ? await dataStore.getAnswersForAttempt(attempt.id) : [];
     const evaluations = attempt ? await dataStore.getEvaluationsForAttempt(attempt.id) : [];
@@ -107,7 +136,7 @@ export async function generateAssessmentReport(
   }
 
   const generatedAtWIB = formatToWIB(new Date().toISOString());
-  const nextVersion = options?.force && existingReport ? existingReport.version + 1 : (existingReport?.version || 1);
+  const nextVersion = existingReport ? existingReport.version + 1 : 1;
 
   // 8. Create or update persistent report entry with status 'generating'
   const summaryJson: ReportSummary = {
@@ -127,6 +156,9 @@ export async function generateAssessmentReport(
     evaluationsRequiringReview: unresolvedEvalsCount,
     failedEvaluations: candidateReportList.flatMap((c) => c.evaluations).filter((e) => e.status === 'failed').length,
     totalAvailablePoints: questions.reduce((sum, q) => sum + Number(q.max_score || 0), 0),
+    selectedCandidateIds: options?.candidateIds && options.candidateIds.length > 0 ? options.candidateIds : null,
+    isCandidateFiltered: Boolean(options?.candidateIds && options.candidateIds.length > 0),
+    hideIntegrityLogs: Boolean(options?.hideIntegrityLogs),
   };
 
   let report = await dataStore.createConfidentialReport({
@@ -147,6 +179,8 @@ export async function generateAssessmentReport(
       questions,
       candidates: candidateReportList,
       generatedAtWIB,
+      hideIntegrityLogs: Boolean(options?.hideIntegrityLogs),
+      isCandidateFiltered: Boolean(options?.candidateIds && options.candidateIds.length > 0),
     });
 
     // 10. Persist PDF to private Supabase bucket
@@ -188,6 +222,8 @@ export async function generateAssessmentReport(
         pdfStoragePath,
         emailStatus: mailResult.status,
         totalCandidates: candidateReportList.length,
+        candidateIds: options?.candidateIds || null,
+        hideIntegrityLogs: Boolean(options?.hideIntegrityLogs),
       },
     });
 

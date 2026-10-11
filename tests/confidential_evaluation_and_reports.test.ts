@@ -390,4 +390,89 @@ describe('Confidential Evaluation Workflow and Consolidated PDF Reporting', () =
 
     expect(pdfBytes.length).toBeGreaterThan(500);
   });
+
+  // 19. Report generation supports selective candidate inclusion (custom candidate filter)
+  it('19. should generate report filtering to only selected candidates when specified', async () => {
+    const cand1 = `cand-sel-1-${Date.now()}`;
+    const cand2 = `cand-sel-2-${Date.now()}`;
+    await dataStore.createProfile({
+      id: cand1,
+      full_name: 'Target Candidate A',
+      student_email: `cand1.${Date.now()}@student.president.ac.id`,
+      intended_division: 'problem_analysis',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    await dataStore.createProfile({
+      id: cand2,
+      full_name: 'Excluded Candidate B',
+      student_email: `cand2.${Date.now()}@student.president.ac.id`,
+      intended_division: 'problem_analysis',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const pastDeadline = new Date(Date.now() - 10000).toISOString();
+    await dataStore.updateAssessment({
+      id: testAssessmentId,
+      global_closing_at: pastDeadline,
+    });
+
+    const res = await generateAssessmentReport(testAssessmentId, {
+      force: true,
+      candidateIds: [cand1],
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.report).toBeDefined();
+    expect(res.report?.total_candidates).toBe(1);
+    const summary = res.report?.summary_json as Record<string, unknown>;
+    expect(summary.isCandidateFiltered).toBe(true);
+    expect(summary.selectedCandidateIds).toEqual([cand1]);
+  });
+
+  // 20. Report generation supports hiding integrity and proctoring telemetry
+  it('20. should omit integrity & proctoring logs when hideIntegrityLogs option is true', async () => {
+    const candId = `cand-proctor-${Date.now()}`;
+    await dataStore.createProfile({
+      id: candId,
+      full_name: 'Proctored Candidate',
+      student_email: `proctor.${Date.now()}@student.president.ac.id`,
+      intended_division: 'problem_analysis',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const attempt = await dataStore.startAttempt(candId, testAssessmentId, 'sess-proctor');
+    await dataStore.logIntegrityEvent({
+      attempt_id: attempt.id,
+      candidate_id: candId,
+      session_id: 'sess-proctor',
+      event_type: 'tab_switch',
+      severity: 'medium',
+      metadata: { url: 'https://google.com' },
+    });
+
+    const pastDeadline = new Date(Date.now() - 10000).toISOString();
+    await dataStore.updateAssessment({
+      id: testAssessmentId,
+      global_closing_at: pastDeadline,
+    });
+
+    const res = await generateAssessmentReport(testAssessmentId, {
+      force: true,
+      candidateIds: [candId],
+      hideIntegrityLogs: true,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.report).toBeDefined();
+    const summary = res.report?.summary_json as Record<string, unknown>;
+    expect(summary.hideIntegrityLogs).toBe(true);
+
+    // Retrieve generated PDF and verify PDF buffer exists
+    const pdfBytes = await getReportPdfBuffer(res.report!.pdf_storage_path!);
+    expect(pdfBytes).toBeDefined();
+    expect(pdfBytes!.length).toBeGreaterThan(1000);
+  });
 });

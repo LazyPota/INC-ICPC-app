@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { assessmentId, force } = body;
+    const { assessmentId, force, candidateIds, hideIntegrityLogs } = body;
 
     if (!assessmentId) {
       return NextResponse.json({ error: 'Missing assessmentId parameter' }, { status: 400 });
@@ -18,6 +18,8 @@ export async function POST(request: Request) {
 
     const result = await generateAssessmentReport(assessmentId, {
       force: Boolean(force),
+      candidateIds: Array.isArray(candidateIds) ? candidateIds.filter((id: unknown) => typeof id === 'string') : undefined,
+      hideIntegrityLogs: Boolean(hideIntegrityLogs),
       triggeredBy: session.email,
     });
 

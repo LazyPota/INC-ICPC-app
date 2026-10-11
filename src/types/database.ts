@@ -198,6 +198,9 @@ export interface ReportSummary {
   evaluationsRequiringReview: number;
   failedEvaluations: number;
   totalAvailablePoints: number;
+  selectedCandidateIds?: string[] | null;
+  isCandidateFiltered?: boolean;
+  hideIntegrityLogs?: boolean;
 }
 
 export interface ConfidentialReport {

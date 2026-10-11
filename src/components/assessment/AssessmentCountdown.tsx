@@ -48,7 +48,7 @@ export function AssessmentCountdown({ deadlineAt, onExpire }: Props) {
       ) : (
         <Clock className="w-4 h-4 text-blue-400" />
       )}
-      <span>{formatCountdown(secondsLeft)}</span>
+      <span suppressHydrationWarning>{formatCountdown(secondsLeft)}</span>
       {isUrgent && <span className="text-xs uppercase font-sans tracking-wide">Time Critical</span>}
     </div>
   );

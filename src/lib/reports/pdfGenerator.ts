@@ -28,6 +28,8 @@ export interface ConsolidatedReportData {
   questions: Array<Question & { privateConfig?: PrivateQuestionConfig }>;
   candidates: ReportCandidateData[];
   generatedAtWIB: string;
+  hideIntegrityLogs?: boolean;
+  isCandidateFiltered?: boolean;
 }
 
 function sanitizeText(str: string | null | undefined): string {
@@ -236,6 +238,11 @@ export async function generateConsolidatedPdfReport(data: ConsolidatedReportData
   );
   drawKeyValue('Report Generation Timestamp:', `${data.generatedAtWIB} (Asia/Jakarta)`);
   drawKeyValue('Total Registered Candidates:', `${totalRegistered}`);
+  if (data.isCandidateFiltered) {
+    drawKeyValue('Report Candidate Scope:', `Selected Subset (${data.candidates.length} candidate${data.candidates.length === 1 ? '' : 's'})`);
+  } else {
+    drawKeyValue('Report Candidate Scope:', `Full Division Cohort (${data.candidates.length} candidates)`);
+  }
   drawKeyValue('Candidates Started:', `${startedCandidates.length} (${Math.round((startedCandidates.length / (totalRegistered || 1)) * 100)}%)`);
   drawKeyValue('Candidates Submitted/Finalized:', `${submittedCandidates.length}`);
   drawKeyValue('Candidates Absent (No Attempt):', `${notStartedCandidates.length}`);
@@ -243,6 +250,11 @@ export async function generateConsolidatedPdfReport(data: ConsolidatedReportData
   drawKeyValue('Evaluations Requiring Review:', `${reviewRequiredEvals.length}`);
   drawKeyValue('Failed / Incomplete Grading Jobs:', `${failedEvals.length}`);
   drawKeyValue('Total Available Division Points:', `${totalAvailablePoints} pts`);
+  if (data.hideIntegrityLogs) {
+    drawKeyValue('Integrity & Proctoring Logs:', 'Excluded by Administrator Configuration (Confidential Mode)');
+  } else {
+    drawKeyValue('Integrity & Proctoring Logs:', 'Included in Section D Telemetry Dossier');
+  }
 
   currentY -= 8;
 
@@ -438,43 +450,49 @@ export async function generateConsolidatedPdfReport(data: ConsolidatedReportData
       });
     }
 
-    // SECTION D: Integrity Review
-    ensureSpace(30);
-    currentPage.drawText('Section D: Integrity & Proctoring Review', {
-      x: MARGIN_LEFT + 8,
-      y: currentY,
-      size: 8,
-      font: fontBold,
-      color: rgb(0.2, 0.25, 0.35),
-    });
-    currentY -= 12;
-
-    if (cand.integrityEvents.length === 0) {
-      drawParagraphText('No suspicious integrity events recorded for this session.', fontRegular, 8, rgb(0.4, 0.4, 0.4), 8);
-    } else {
-      drawKeyValue('Total Integrity Events:', `${cand.integrityEvents.length} recorded`, 8);
-      cand.integrityEvents.slice(0, 5).forEach((ev) => {
-        ensureSpace(12);
-        currentPage.drawText(
-          sanitizeText(`- [${formatToWIB(ev.created_at)}] ${ev.event_type.toUpperCase()} (Severity: ${ev.severity.toUpperCase()})`),
-          {
-            x: MARGIN_LEFT + 12,
-            y: currentY,
-            size: 7.5,
-            font: fontRegular,
-            color: ev.severity === 'high' ? rgb(0.7, 0.1, 0.1) : rgb(0.3, 0.3, 0.3),
-          }
-        );
-        currentY -= 11;
+    // SECTION D: Integrity Review (Omitted if hideIntegrityLogs is true)
+    if (!data.hideIntegrityLogs) {
+      ensureSpace(30);
+      currentPage.drawText('Section D: Integrity & Proctoring Review', {
+        x: MARGIN_LEFT + 8,
+        y: currentY,
+        size: 8,
+        font: fontBold,
+        color: rgb(0.2, 0.25, 0.35),
       });
-      if (cand.integrityEvents.length > 5) {
-        drawParagraphText(`... and ${cand.integrityEvents.length - 5} additional events in audit log.`, fontRegular, 7, rgb(0.5, 0.5, 0.5), 12);
+      currentY -= 12;
+
+      if (cand.integrityEvents.length === 0) {
+        drawParagraphText('No suspicious integrity events recorded for this session.', fontRegular, 8, rgb(0.4, 0.4, 0.4), 8);
+      } else {
+        drawKeyValue('Total Integrity Events:', `${cand.integrityEvents.length} recorded`, 8);
+        cand.integrityEvents.slice(0, 5).forEach((ev) => {
+          ensureSpace(12);
+          currentPage.drawText(
+            sanitizeText(`- [${formatToWIB(ev.created_at)}] ${ev.event_type.toUpperCase()} (Severity: ${ev.severity.toUpperCase()})`),
+            {
+              x: MARGIN_LEFT + 12,
+              y: currentY,
+              size: 7.5,
+              font: fontRegular,
+              color: ev.severity === 'high' ? rgb(0.7, 0.1, 0.1) : rgb(0.3, 0.3, 0.3),
+            }
+          );
+          currentY -= 11;
+        });
+        if (cand.integrityEvents.length > 5) {
+          drawParagraphText(`... and ${cand.integrityEvents.length - 5} additional events in audit log.`, fontRegular, 7, rgb(0.5, 0.5, 0.5), 12);
+        }
       }
     }
 
-    // SECTION E: Administrator Review
+    // SECTION E / D: Administrator Review
+    const adminSectionTitle = data.hideIntegrityLogs
+      ? 'Section D: Administrator Review & Final Determination'
+      : 'Section E: Administrator Review & Final Determination';
+
     ensureSpace(40);
-    currentPage.drawText('Section E: Administrator Review & Final Determination', {
+    currentPage.drawText(adminSectionTitle, {
       x: MARGIN_LEFT + 8,
       y: currentY,
       size: 8,
