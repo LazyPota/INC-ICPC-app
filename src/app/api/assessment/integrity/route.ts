@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { dataStore } from '@/lib/data/store';
-import { ProctorEventSchema } from '@/lib/validations/assessment';
+import { ProctorEventSchema, LEGACY_QUESTION_MAP } from '@/lib/validations/assessment';
 
 export async function POST(request: Request) {
   try {
@@ -32,6 +32,10 @@ export async function POST(request: Request) {
       }
     }
 
+    const mappedQuestionId = validated.questionId
+      ? (LEGACY_QUESTION_MAP[validated.questionId] || validated.questionId)
+      : null;
+
     await dataStore.logIntegrityEvent({
       attempt_id: validated.attemptId,
       candidate_id: session.userId,
@@ -39,7 +43,7 @@ export async function POST(request: Request) {
       event_type: validated.eventType,
       severity: validated.severity,
       metadata: sanitizedMetadata,
-      question_id: validated.questionId || null,
+      question_id: mappedQuestionId,
     });
 
     return NextResponse.json({ success: true });

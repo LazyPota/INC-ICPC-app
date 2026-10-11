@@ -7,6 +7,7 @@ import {
   assertPersistenceConfigured,
 } from './localStore';
 import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/admin';
+import { LEGACY_QUESTION_MAP } from '@/lib/validations/assessment';
 import type {
   Profile,
   Assessment,
@@ -537,6 +538,8 @@ export const dataStore = {
       throw new Error('Assessment deadline has expired or has already been submitted');
     }
 
+    // Resolve legacy question ID to standard RFC-4122 UUID if applicable
+    const resolvedQuestionId = LEGACY_QUESTION_MAP[questionId] || questionId;
     const now = new Date().toISOString();
 
     if (isSupabaseConfigured()) {
@@ -545,13 +548,13 @@ export const dataStore = {
         .from('candidate_answers')
         .select('*')
         .eq('attempt_id', attemptId)
-        .eq('question_id', questionId)
-        .single();
+        .eq('question_id', resolvedQuestionId)
+        .maybeSingle();
 
       const newVersion = (existing?.version || 0) + 1;
       const payload: Partial<CandidateAnswer> = {
         attempt_id: attemptId,
-        question_id: questionId,
+        question_id: resolvedQuestionId,
         answer_content: content.answerContent !== undefined ? content.answerContent : existing?.answer_content,
         selected_option: content.selectedOption !== undefined ? content.selectedOption : existing?.selected_option,
         code_content: content.codeContent !== undefined ? content.codeContent : existing?.code_content,
@@ -571,12 +574,14 @@ export const dataStore = {
     }
 
     const db = readLocalDB();
-    const idx = db.answers.findIndex((a) => a.attempt_id === attemptId && a.question_id === questionId);
+    const idx = db.answers.findIndex(
+      (a) => a.attempt_id === attemptId && (a.question_id === resolvedQuestionId || a.question_id === questionId)
+    );
     const existing = idx >= 0 ? db.answers[idx] : null;
     const answerRecord: CandidateAnswer = {
       id: existing ? existing.id : crypto.randomUUID(),
       attempt_id: attemptId,
-      question_id: questionId,
+      question_id: resolvedQuestionId,
       answer_content: content.answerContent !== undefined ? content.answerContent : existing?.answer_content,
       selected_option: content.selectedOption !== undefined ? content.selectedOption : existing?.selected_option,
       code_content: content.codeContent !== undefined ? content.codeContent : existing?.code_content,

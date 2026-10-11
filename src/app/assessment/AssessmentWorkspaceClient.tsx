@@ -8,6 +8,7 @@ import { AutosaveIndicator, type SaveState } from '@/components/assessment/Autos
 import { MonacoCodeEditor } from '@/components/assessment/MonacoCodeEditor';
 import { ProctorMonitor } from '@/components/assessment/ProctorMonitor';
 import { SubmitConfirmationModal } from '@/components/assessment/SubmitConfirmationModal';
+import { LEGACY_QUESTION_MAP } from '@/lib/validations/assessment';
 import {
   Terminal,
   CheckCircle2,
@@ -39,11 +40,19 @@ export function AssessmentWorkspaceClient({
   const [answersMap, setAnswersMap] = useState<Record<string, { answerContent?: string; selectedOption?: string; codeContent?: string }>>(() => {
     const map: Record<string, { answerContent?: string; selectedOption?: string; codeContent?: string }> = {};
     initialAnswers.forEach((ans) => {
-      map[ans.question_id] = {
+      const val = {
         answerContent: ans.answer_content || '',
         selectedOption: ans.selected_option || '',
         codeContent: ans.code_content || '',
       };
+      map[ans.question_id] = val;
+      if (LEGACY_QUESTION_MAP[ans.question_id]) {
+        map[LEGACY_QUESTION_MAP[ans.question_id]] = val;
+      }
+      const legacyKey = Object.keys(LEGACY_QUESTION_MAP).find((k) => LEGACY_QUESTION_MAP[k] === ans.question_id);
+      if (legacyKey) {
+        map[legacyKey] = val;
+      }
     });
     return map;
   });
